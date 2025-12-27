@@ -9,6 +9,7 @@
 #include <numeric>
 #include <functional>
 #include <iomanip>
+#include <tuple>
 
 using namespace std;
 using namespace chrono;
@@ -59,10 +60,13 @@ int interpolationSearch(const vector<double> &arr, double target)
       return -1;
 }
 
-int MSSA_Binary(const vector<double> &arr, double target, long double inv_key, int d)
+int MSSA_Binary(const vector<double> &arr, double target, int pos, int d)
 {
-      int left = target * inv_key - 1 - d; // OLD: int left = target / key - 1 - d;
-      int right = left + d + d;
+      // OLD 1: int left = target / key - 1 - d;
+      // OLD 2: int left = target * inv_key - 1 - d;
+      // OLD 2: int right = left + d + d;
+      int left = pos - d;
+      int right = pos + d;
       int last = arr.size() - 1;
 
       if (left < 0)
@@ -89,10 +93,13 @@ int MSSA_Binary(const vector<double> &arr, double target, long double inv_key, i
       return -1;
 }
 
-int MSSA_Interpolation(const vector<double> &arr, double target, long double inv_key, int d)
+int MSSA_Interpolation(const vector<double> &arr, double target, int pos, int d)
 {
-      int left = target * inv_key - 1 - d; // OLD: int left = target / key - 1 - d;
-      int right = left + d + d;
+      // OLD 1: int left = target / key - 1 - d;
+      // OLD 2: int left = target * inv_key - 1 - d;
+      // OLD 2: int right = left + d + d;
+      int left = pos - d;
+      int right = pos + d;
       int last = arr.size() - 1;
 
       if (left < 0)
@@ -119,13 +126,13 @@ int MSSA_Interpolation(const vector<double> &arr, double target, long double inv
       return -1;
 }
 
-pair<long double, int> classic_MSSKCA(const vector<double> &X)
+pair<long double, int> classic_MSSKCA(const vector<double> &y)
 {
       auto start = high_resolution_clock::now();
 
-      const int N = X.size();
+      const int N = y.size();
       long double d = 0;
-      long double key = X[0];
+      long double key = y[0];
       for (int i = 0; i < N - 1; i++)
       {
             if (i % (N / 10) == 0)
@@ -134,23 +141,23 @@ pair<long double, int> classic_MSSKCA(const vector<double> &X)
             }
             for (int j = i + 1; j < N; j++)
             {
-                  long double xi_over_i = X[i] / (i + 1);
-                  long double xj_over_j = X[j] / (j + 1);
+                  long double xi_over_i = y[i] / (i + 1);
+                  long double xj_over_j = y[j] / (j + 1);
                   if (xi_over_i < xj_over_j)
                   {
-                        long double dd = (i * X[j] - j * X[i] + X[j] - X[i]) / (X[i] + X[j]);
+                        long double dd = (i * y[j] - j * y[i] + y[j] - y[i]) / (y[i] + y[j]);
                         if (dd > d)
                         {
-                              key = X[j] / (j + 1 + dd);
+                              key = y[j] / (j + 1 + dd);
                               d = dd;
                         }
                   }
                   else if (xi_over_i > xj_over_j)
                   {
-                        long double dd = (j * X[i] - i * X[j] + X[i] - X[j]) / (X[i] + X[j]);
+                        long double dd = (j * y[i] - i * y[j] + y[i] - y[j]) / (y[i] + y[j]);
                         if (dd > d)
                         {
-                              key = X[i] / (i + 1 + dd); // the denominator is always + to avoid a possible NaN case
+                              key = y[i] / (i + 1 + dd); // the denominator is always + to avoid a possible NaN case
                               d = dd;
                         }
                   }
@@ -165,13 +172,13 @@ pair<long double, int> classic_MSSKCA(const vector<double> &X)
 
       // optional output and test part
       cout << "- Classic MSSKCA ended in: " << elapsed.count() << " seconds" << endl;
-      cout << "- Classic MSSKCA results: " << " key = " << key << ", d = " << d << endl;
+      cout << "- Classic MSSKCA results: " << " key = " << key << ", max error = " << d << endl;
       cout << "- Classic MSSKCA: Performing MSSA with Binary NO-MISSED element test..." << endl;
-      for (int i = 0; i < X.size(); i++)
+      for (int i = 0; i < y.size(); i++)
       {
-            if (-1 == MSSA_Binary(X, X[i], inv_key, d))
+            if (-1 == MSSA_Binary(y, y[i], y[i] * inv_key - 1, d))
             {
-                  printf("! Error: MSSA with Binary missed X[%d] = %d\n", i, X[i]);
+                  printf("! Error: MSSA with Binary missed y[%d] = %f\n", i, y[i]);
                   break;
             }
       }
@@ -179,9 +186,9 @@ pair<long double, int> classic_MSSKCA(const vector<double> &X)
       return {inv_key, d};
 }
 
-pair<long double, int> fast_MSSKCA(const vector<double> &X)
+pair<long double, int> fast_MSSKCA(const vector<double> &y)
 {
-      long double key = X[0] / (0 + 1.0); // initial key
+      long double key = y[0] / (0 + 1.0); // initial key
       long double d = 0.0;                // d in ideal case
       vector<int> game_changer = {0};     // i = 0, the first element
       int counter = 0;
@@ -189,29 +196,29 @@ pair<long double, int> fast_MSSKCA(const vector<double> &X)
       {
             int i = game_changer[counter];
             int gc = -1;
-            for (int j = 0; j < X.size(); j++)
+            for (int j = 0; j < y.size(); j++)
             {
                   if (i == j)
                         continue;
 
-                  long double xi_over_i = X[i] / (i + 1);
-                  long double xj_over_j = X[j] / (j + 1);
+                  long double xi_over_i = y[i] / (i + 1);
+                  long double xj_over_j = y[j] / (j + 1);
                   if (xi_over_i < xj_over_j)
                   {
-                        long double dd = (i * X[j] - j * X[i] + X[j] - X[i]) / (X[i] + X[j]);
+                        long double dd = (i * y[j] - j * y[i] + y[j] - y[i]) / (y[i] + y[j]);
                         if (dd > d)
                         {
-                              key = X[j] / (j + 1 + dd);
+                              key = y[j] / (j + 1 + dd);
                               d = dd;
                               gc = j;
                         }
                   }
                   else if (xi_over_i > xj_over_j)
                   {
-                        long double dd = (j * X[i] - i * X[j] + X[i] - X[j]) / (X[i] + X[j]);
+                        long double dd = (j * y[i] - i * y[j] + y[i] - y[j]) / (y[i] + y[j]);
                         if (dd > d)
                         {
-                              key = X[i] / (i + 1 + dd); // the denominator is always + to avoid a possible NaN case
+                              key = y[i] / (i + 1 + dd); // the denominator is always + to avoid a possible NaN case
                               d = dd;
                               gc = j;
                         }
@@ -226,13 +233,13 @@ pair<long double, int> fast_MSSKCA(const vector<double> &X)
       long double inv_key = 1.0L / key;
 
       // optional output and test part
-      cout << "- Fast MSSKCA results: " << " key = " << key << ", d = " << d << endl;
+      cout << "- Fast MSSKCA results: " << " key = " << key << ", max error = " << d << endl;
       cout << "- Fast MSSKCA: performing MSSA with Binary NO-MISSED element test..." << endl;
-      for (int i = 0; i < X.size(); i++)
+      for (int i = 0; i < y.size(); i++)
       {
-            if (-1 == MSSA_Binary(X, X[i], inv_key, d))
+            if (-1 == MSSA_Binary(y, y[i], y[i] * inv_key - 1, d))
             {
-                  printf("! Error: MSSA with Binary missed X[%d] = %d\n", i, X[i]);
+                  printf("! Error: MSSA with Binary missed y[%d] = %f\n", i, y[i]);
                   break;
             }
       }
@@ -240,19 +247,236 @@ pair<long double, int> fast_MSSKCA(const vector<double> &X)
       return {inv_key, d};
 }
 
+tuple<long double, long double, int> linearRegression(const vector<double> &y)
+{
+      int n = y.size();
+      if (n == 0)
+            return {0.0, 0.0, 0.0};
+
+      double sum_x = 0.0;
+      double sum_y = 0.0;
+      double sum_xy = 0.0;
+      double sum_x2 = 0.0;
+
+      for (int i = 0; i < n; ++i)
+      {
+            sum_x += y[i];
+            sum_y += i;
+            sum_xy += y[i] * i;
+            sum_x2 += y[i] * y[i];
+      }
+
+      long double denom = n * sum_x2 - sum_x * sum_x;
+      if (denom == 0.0)
+      {
+            return {0.0, sum_y / n, 0.0};
+      }
+
+      long double m = (n * sum_xy - sum_x * sum_y) / denom;
+      long double b = (sum_y - m * sum_x) / n;
+      double max_error = 0; // max error
+      for (int i = 0; i < n; ++i)
+      {
+            double predicted = m * y[i] + b;
+            if (max_error < abs(predicted - i))
+                  max_error = abs(predicted - i);
+      }
+
+      max_error = ceil(max_error);
+
+      cout
+          << "- Linear Regression results: slope = " << m << ", intercept = " << b << ", max error = " << max_error << endl;
+      cout << "- Linear Regression: performing MSSA with Binary NO-MISSED element test..." << endl;
+      for (int i = 0; i < y.size(); i++)
+      {
+            if (-1 == MSSA_Binary(y, y[i], y[i] * m + b, max_error))
+            {
+                  printf("! Error: MSSA with Binary missed y[%d] = %f\n", i, y[i]);
+                  break;
+            }
+      }
+
+      return {m, b, max_error};
+}
+
+tuple<long double, long double, long double, int> quadraticRegression(const vector<double> &y)
+{
+      int n = y.size();
+      if (n < 3)
+      {
+            return make_tuple(0, 0, 0, 0); // or some default
+      }
+      double sum1 = 0, sumx = 0, sumx2 = 0, sumx3 = 0, sumx4 = 0, sumxy = 0, sumx2y = 0;
+      for (int i = 0; i < n; ++i)
+      {
+            double x = y[i];
+            double yy = i;
+            sum1 += yy;
+            sumx += x;
+            sumx2 += x * x;
+            sumx3 += x * x * x;
+            sumx4 += x * x * x * x;
+            sumxy += x * yy;
+            sumx2y += x * x * yy;
+      }
+      long double detA = n * (sumx2 * sumx4 - sumx3 * sumx3) - sumx * (sumx * sumx4 - sumx3 * sumx2) + sumx2 * (sumx * sumx3 - sumx2 * sumx2);
+      if (abs(detA) < 1e-10)
+      {
+            return make_tuple(0, 0, 0, 0);
+      }
+      long double detC = sum1 * (sumx2 * sumx4 - sumx3 * sumx3) - sumx * (sumxy * sumx4 - sumx3 * sumx2y) + sumx2 * (sumxy * sumx3 - sumx2 * sumx2y);
+      double c = detC / detA;
+      long double detB = n * (sumxy * sumx4 - sumx3 * sumx2y) - sum1 * (sumx * sumx4 - sumx3 * sumx2) + sumx2 * (sumx * sumx2y - sumxy * sumx2);
+      long double b = detB / detA;
+      long double detA_a = n * (sumx2 * sumx2y - sumx3 * sumxy) - sumx * (sumx * sumx2y - sumx3 * sum1) + sumx2 * (sumx * sumxy - sumx2 * sum1);
+      long double a = detA_a / detA;
+      double max_error = 0;
+      for (int i = 0; i < n; ++i)
+      {
+            double x = y[i];
+            double pred = a * x * x + b * x + c;
+            int err = abs(pred - i);
+            if (err > max_error)
+                  max_error = err;
+      }
+      max_error = ceil(max_error);
+
+      cout << "- Quadratic Regression results: a = " << a << ", b = " << b << ", c = " << c << ", max error = " << max_error << endl;
+
+      cout << "- Quadratic Regression: performing MSSA with Binary NO-MISSED element test..." << endl;
+      for (int i = 0; i < y.size(); i++)
+      {
+            if (-1 == MSSA_Binary(y, y[i], a * y[i] * y[i] + b * y[i] + c, max_error))
+            {
+                  printf("! Error: MSSA with Binary missed y[%d] = %f\n", i, y[i]);
+                  break;
+            }
+      }
+
+      return make_tuple(a, b, c, max_error);
+}
+
+double timeBinarySearch(const vector<double> &data, const vector<double> &targets)
+{
+      cout << "+ Performing binary searches..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            binarySearch(data, target);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+double timeInterpolationSearch(const vector<double> &data, const vector<double> &targets)
+{
+      cout << "+ Performing interpolation searches..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            interpolationSearch(data, target);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+double timeMSSA_Binary(const vector<double> &data, const vector<double> &targets, long double inv_key, int max_error)
+{
+      cout << "+ Performing MSSA with Binary searches (fast MSSKCA)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Binary(data, target, target * inv_key - 1, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+double timeMSSA_Interpolation(const vector<double> &data, const vector<double> &targets, long double inv_key, int max_error)
+{
+      cout << "+ Performing MSSA with Interpolation searches (fast MSSKCA)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Interpolation(data, target, target * inv_key - 1, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+// overloaded functions for linear regression parameters
+double timeMSSA_Binary(const vector<double> &data, const vector<double> &targets, long double slope, long double intercept, int max_error)
+{
+      cout << "+ Performing MSSA with Binary searches (linear regression)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Binary(data, target, target * slope + intercept, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+// overloaded functions for linear regression parameters
+double timeMSSA_Interpolation(const vector<double> &data, const vector<double> &targets, long double slope, long double intercept, int max_error)
+{
+      cout << "+ Performing MSSA with Interpolation searches (linear regression)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Interpolation(data, target, target * slope + intercept, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+// overloaded functions for quadratic regression parameters
+double timeMSSA_Binary(const vector<double> &data, const vector<double> &targets, long double a, long double b, long double c, int max_error)
+{
+      cout << "+ Performing MSSA with Binary searches (quadratic regression)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Binary(data, target, a * target * target + b * target + c, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
+// overloaded functions for quadratic regression parameters
+double timeMSSA_Interpolation(const vector<double> &data, const vector<double> &targets, long double a, long double b, long double c, int max_error)
+{
+      cout << "+ Performing MSSA with Interpolation searches (quadratic regression)..." << endl;
+      auto start = high_resolution_clock::now();
+      for (double target : targets)
+      {
+            MSSA_Interpolation(data, target, a * target * target + b * target + c, max_error);
+      }
+      auto end = high_resolution_clock::now();
+      duration<double> elapsed = end - start;
+      return elapsed.count();
+}
+
 int main()
 {
-      const int N = 1'000'000;
-      cout << fixed << setprecision(3) << endl;
+      const int N = 10'000'000;
+      cout << fixed << setprecision(2) << endl;
       cout << "+ Total number of elements: " << N << endl;
-      const int SEARCH_COUNT = N; // Number of searches to perform for timing
+      const int SEARCH_COUNT = N * 10; // Number of searches to perform for timing
 
       random_device rd;
       mt19937 gen(rd());
 
       cout << endl;
-      double mean = N * 5;    // helps to manipulate range of numbers
-      double std_dev = N * 2; // mean distance around the mean
+      double mean = N * 10;   // helps to manipulate range of numbers
+      double std_dev = N * 5; // mean distance around the mean
       cout << "Test 1: Normal Distribution (Mean: " << mean << ", Std Dev:" << std_dev << ")" << endl;
       cout << "**************************************************************************" << endl;
 
@@ -272,13 +496,19 @@ int main()
       if (N <= 100'000)
       {
             cout << "+ Performing Classic MSSKCA for key and d ..." << endl;
-            auto [inv_key_normal_classic, d_normal_classic] = classic_MSSKCA(data_normal);
+            classic_MSSKCA(data_normal);
       }
 
       cout << "+ Performing Fast MSSKCA for key and d ..." << endl;
-      auto [inv_key_normal_fast, d_normal_fast] = fast_MSSKCA(data_normal);
+      auto [inv_key, d] = fast_MSSKCA(data_normal);
 
-      // cout << "+ Generating search targets..." << endl;
+      cout << "+ Performing Linear Regression for slope and intercept ..." << endl;
+      auto [slope, intercept, lr_max_error] = linearRegression(data_normal);
+
+      cout << "+ Performing Quadratic Regression for a, b, c ..." << endl;
+      auto [a, b, c, qr_max_error] = quadraticRegression(data_normal);
+
+      // cout << "+ Generating " << SEARCH_COUNT << " search targets..." << endl;
       // vector<double> targets_normal(SEARCH_COUNT);
       // for (int i = 0; i < SEARCH_COUNT; i++)
       // {
@@ -287,50 +517,34 @@ int main()
       cout << "+ Using the same data as search targets..." << endl;
       vector<double> targets_normal = data_normal;
 
-      cout << "+ Performing binary searches..." << endl;
-      auto start = high_resolution_clock::now();
-      for (double target : targets_normal)
-      {
-            binarySearch(data_normal, target);
-      }
-      auto end = high_resolution_clock::now();
-      duration<double> binary_time = end - start;
+      double binary_time = timeBinarySearch(data_normal, targets_normal);
 
-      cout << "+ Performing interpolation searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_normal)
-      {
-            interpolationSearch(data_normal, target);
-      }
-      end = high_resolution_clock::now();
-      duration<double> interpolation_time = end - start;
+      double interpolation_time = timeInterpolationSearch(data_normal, targets_normal);
 
-      cout << "+ Performing MSSA with Binary searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_normal)
-      {
-            MSSA_Binary(data_normal, target, inv_key_normal_fast, d_normal_fast);
-      }
-      end = high_resolution_clock::now();
-      duration<double> MSSA_binary_time = end - start;
+      double MSSA_binary_time = timeMSSA_Binary(data_normal, targets_normal, inv_key, d);
 
-      cout << "+ Performing MSSA with Interpolation searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_normal)
-      {
-            MSSA_Interpolation(data_normal, target, inv_key_normal_fast, d_normal_fast);
-      }
-      end = high_resolution_clock::now();
-      duration<double> MSSA_interpolation_time = end - start;
+      double MSSA_interpolation_time = timeMSSA_Interpolation(data_normal, targets_normal, inv_key, d);
+
+      double MSSA_binary_lg_time = timeMSSA_Binary(data_normal, targets_normal, slope, intercept, lr_max_error);
+
+      double MSSA_interpolation_lg_time = timeMSSA_Interpolation(data_normal, targets_normal, slope, intercept, lr_max_error);
+
+      double MSSA_binary_qr_time = timeMSSA_Binary(data_normal, targets_normal, a, b, c, qr_max_error);
+
+      double MSSA_interpolation_qr_time = timeMSSA_Interpolation(data_normal, targets_normal, a, b, c, qr_max_error);
 
       cout << "-------------------------------------------" << endl;
       cout << "Outputting results for Normal Distribution" << endl;
       cout << "-------------------------------------------" << endl;
 
-      cout << "+ Binary Search Time: " << binary_time.count() << " seconds" << endl;
-      cout << "+ Interpolation Search Time: " << interpolation_time.count() << " seconds" << endl;
-      cout << "+ MSSA with Binary Search Time: " << MSSA_binary_time.count() << " seconds" << endl;
-      cout << "+ MSSA with Interpolation Search Time: " << MSSA_interpolation_time.count() << " seconds" << endl;
+      cout << "+ Binary Search Time: " << binary_time << " seconds" << endl;
+      cout << "+ Interpolation Search Time: " << interpolation_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (fast MSSKCA) Time: " << MSSA_binary_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (fast MSSKCA) Time: " << MSSA_interpolation_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (Linear Regression) Time: " << MSSA_binary_lg_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (Linear Regression) Time: " << MSSA_interpolation_lg_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (Quadratic Regression) Time: " << MSSA_binary_qr_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (Quadratic Regression) Time: " << MSSA_interpolation_qr_time << " seconds" << endl;
 
       cout << endl;
 
@@ -354,13 +568,19 @@ int main()
       if (N <= 100'000)
       {
             cout << "+ Performing Classic MSSKCA for key and d ..." << endl;
-            auto [inv_key_uniform_classic, d_uniform_classic] = classic_MSSKCA(data_uniform);
+            classic_MSSKCA(data_uniform);
       }
 
       cout << "+ Performing Fast MSSKCA for key and d ..." << endl;
-      auto [inv_key_uniform_fast, d_uniform_fast] = fast_MSSKCA(data_uniform);
+      tie(inv_key, d) = fast_MSSKCA(data_uniform);
 
-      // cout << "+ Generating search targets..." << endl;
+      cout << "+ Performing Linear Regression for slope and intercept ..." << endl;
+      tie(slope, intercept, lr_max_error) = linearRegression(data_uniform);
+
+      cout << "+ Performing Quadratic Regression for a, b, c ..." << endl;
+      tie(a, b, c, qr_max_error) = quadraticRegression(data_uniform);
+
+      // cout << "+ Generating " << SEARCH_COUNT << " search targets..." << endl;
       // vector<double> targets_uniform(SEARCH_COUNT);
       // for (int i = 0; i < SEARCH_COUNT; i++)
       // {
@@ -370,50 +590,34 @@ int main()
       cout << "+ Using the same data as search targets..." << endl;
       vector<double> targets_uniform = data_uniform;
 
-      cout << "+ Performing binary searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_uniform)
-      {
-            binarySearch(data_uniform, target);
-      }
-      end = high_resolution_clock::now();
-      binary_time = end - start;
+      binary_time = timeBinarySearch(data_uniform, targets_uniform);
 
-      cout << "+ Performing interpolation searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_uniform)
-      {
-            interpolationSearch(data_uniform, target);
-      }
-      end = high_resolution_clock::now();
-      interpolation_time = end - start;
+      interpolation_time = timeInterpolationSearch(data_uniform, targets_uniform);
 
-      cout << "+ Performing MSSA with Binary searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_uniform)
-      {
-            MSSA_Binary(data_uniform, target, inv_key_uniform_fast, d_uniform_fast);
-      }
-      end = high_resolution_clock::now();
-      MSSA_binary_time = end - start;
+      MSSA_binary_time = timeMSSA_Binary(data_uniform, targets_uniform, inv_key, d);
 
-      cout << "+ Performing MSSA with Interpolation searches..." << endl;
-      start = high_resolution_clock::now();
-      for (double target : targets_uniform)
-      {
-            MSSA_Interpolation(data_uniform, target, inv_key_uniform_fast, d_uniform_fast);
-      }
-      end = high_resolution_clock::now();
-      MSSA_interpolation_time = end - start;
+      MSSA_interpolation_time = timeMSSA_Interpolation(data_uniform, targets_uniform, inv_key, d);
+
+      MSSA_binary_lg_time = timeMSSA_Binary(data_uniform, targets_uniform, slope, intercept, lr_max_error);
+
+      MSSA_interpolation_lg_time = timeMSSA_Interpolation(data_uniform, targets_uniform, slope, intercept, lr_max_error);
+
+      MSSA_binary_qr_time = timeMSSA_Binary(data_uniform, targets_uniform, a, b, c, qr_max_error);
+
+      MSSA_interpolation_qr_time = timeMSSA_Interpolation(data_uniform, targets_uniform, a, b, c, qr_max_error);
 
       cout << "-------------------------------------------" << endl;
       cout << "Outputting results for Uniform Distribution" << endl;
       cout << "-------------------------------------------" << endl;
 
-      cout << "+ Binary Search Time: " << binary_time.count() << " seconds" << endl;
-      cout << "+ Interpolation Search Time: " << interpolation_time.count() << " seconds" << endl;
-      cout << "+ MSSA with Binary Search Time: " << MSSA_binary_time.count() << " seconds" << endl;
-      cout << "+ MSSA with Interpolation Search Time: " << MSSA_interpolation_time.count() << " seconds" << endl;
+      cout << "+ Binary Search Time: " << binary_time << " seconds" << endl;
+      cout << "+ Interpolation Search Time: " << interpolation_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (fast MSSKCA) Time: " << MSSA_binary_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (fast MSSKCA) Time: " << MSSA_interpolation_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (Linear Regression) Time: " << MSSA_binary_lg_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (Linear Regression) Time: " << MSSA_interpolation_lg_time << " seconds" << endl;
+      cout << "+ MSSA with Binary Search (Quadratic Regression) Time: " << MSSA_binary_qr_time << " seconds" << endl;
+      cout << "+ MSSA with Interpolation Search (Quadratic Regression) Time: " << MSSA_interpolation_qr_time << " seconds" << endl;
 
       cout << endl;
 
