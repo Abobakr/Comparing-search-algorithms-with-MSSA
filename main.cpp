@@ -140,12 +140,12 @@ int Reg_Binary(const vector<double> &data, double target, int pos, int low, int 
       int last = data.size() - 1;
       if (low < 0)
             low = 0;
-      if (pos < 0)
-            pos = 0;
-      if (pos > last)
-            pos = last;
       if (high > last)
             high = last;
+      if (pos < low)
+            pos = low;
+      if (pos > high)
+            pos = high;
 
       while (low <= high)
       {
@@ -156,7 +156,7 @@ int Reg_Binary(const vector<double> &data, double target, int pos, int low, int 
             else
                   high = pos - 1;
 
-            pos = (low + high) * 0.5;
+            pos = (low + high) >> 1; //*0.5;
       }
       return -1;
 }
