@@ -1,10 +1,9 @@
 %% THIS CODING IS DONE FOR PROOFING THE RESULTS OF THE PUBLISHED PAPER: https://ieeexplore.ieee.org/document/8751856/ 
 
-%4 Algorithms: Binary (BSA) | Interpolation (ISA) | MSSA using Binary (MSSA_BSA) | MSSA using Interpolation (MSSA_ISA)
-n = 3;   % Comparision count for different array sizes each time x10
-m = 1000000;  % The first array size; (when n=1)
-% if array's size = 10^6 it would take up to 45 minutes
-% rng('shuffle', 'v5normal');
+% We are comparing 4 Algorithms: Binary (BSA) | Interpolation (ISA) | MSSA using Binary (MSSA_BSA) | MSSA using Interpolation (MSSA_ISA)
+n = 1;   % Comparision count for different array sizes each time x10
+m = 10000000;  % The first array size; (when n=1)
+rng('shuffle', 'v5normal');
 
 %% Elements Count
 
@@ -38,11 +37,13 @@ for i= 1:n
     %% Generating Random Data
         
     TestSize(i) = m;
-    Y1=sort(round(randn(1,m*2.5)*m*10));
-    Y1 = Y1(Y1>0); Y1 = Y1(1:m); % normal increase
-    Y2=sort(round(abs(randn(1,m)*m*10))); % exponential increase
+    % Y1 = sort(randn(1,m*3.5)*m*10);
+    % Y1 = Y1(Y1>0); Y1 = Y1(1:m); % normal increase
+    Y1=sort(abs(randn(1,m)*m*3)); % normal increase
+    Y2=sort(abs(randn(1,m)*m*10)); % exponential increase
     Y3=sort(randi(m*10,1,m)); % Approximate-Uniform increase
     Y4=2:2:m*2; % Ideal Uniform increase
+
     elements = 1:m;
     figure
     plot(elements,Y1,'g',elements,Y2,'r',elements,Y3,'b',elements,Y4,'y');
@@ -56,6 +57,12 @@ for i= 1:n
     % [MS_key, MS_d ]=MSSCKA_Parallel(Y1);
     [MS_key, MS_d ]=Game_Changer_MSSCKA(Y1);
     
+    Res=zeros(1,m);
+    for k=1:m
+        [Res(k),~]=MSSA_ISA(Y1(k),Y1,MS_d,MS_key);
+    end
+    disp(['MSSA_ISA Missed searches count =',num2str(size(find( Res == 0),2))]);
+
     %% Search for All compettive Algorithms
     
     BSA_TCs=zeros(1,m);
@@ -202,4 +209,4 @@ disp(['ExecTime = ',num2str(ExecutionTime)]);
 c = categorical({'BSA','MSSA\_BSA','ISA','MSSA\_ISA'});
 figure
 bar(c,ExecutionTime);
-title(['ExecTime for searching ', num2str(m), 'items (all existed)']);
+title(['ExecTime for searching ', num2str(m), ' items (all existed)']);
