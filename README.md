@@ -123,9 +123,9 @@ These scripts are useful for generating figures, validating results, and reprodu
 
 ## Images and visual context
 
-![Normal Distribution Comparison](normal distribution - comparision.jpg)
+![Normal Distribution Comparison](./normal%20distribution%20-%20comparision.jpg)
 
-![Exponential Distribution Comparison](exponential distribution - comparision.jpg)
+![Exponential Distribution Comparison](./exponential%20distribution%20-%20comparision.jpg)
 
 > The images show how the project compares algorithm performance and data behavior for two of the main distributions.
 
