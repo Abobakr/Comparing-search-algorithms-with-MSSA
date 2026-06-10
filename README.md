@@ -1,4 +1,13 @@
-﻿# MSSA C++ Search Algorithm Benchmark
+## In concise
+
+THIS CODING IS DONE FOR PROOFING THE RESULTS OF THE PUBLISHED PAPER: https://ieeexplore.ieee.org/document/8751856/ to see more details remove comments those are inside game_changer_MSSKCA function
+
+to run the latest upgraded version of the algorithm pass an argument referring the number of parts you want to divide the data to (eg. 100'000)
+You need (at least for now) to change other parameters manually in code.
+
+ --------------------------------------------------------------------------------------
+ 
+ # MSSA C++ Search Algorithm Benchmark
 
 A self-contained C++ benchmark project that compares classical search algorithms with regression-guided and MSSA-inspired indexed search strategies on large sorted datasets.
 
